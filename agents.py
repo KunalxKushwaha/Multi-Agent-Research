@@ -11,6 +11,8 @@ load_dotenv()
 #model setup 
 llm = ChatMistralAI(model = "mistral-small-2506",temperature=0)
 
+
+## TOOLS
 #1st agent 
 def build_search_agent():
     return create_agent(
@@ -26,3 +28,10 @@ def build_reader_agent():
         tools = [scrape_url]
     )
 
+
+## RUNNABLES
+#1. writer chain
+
+writer_agent = ChatPromptTemplate([
+    """You: """
+])
