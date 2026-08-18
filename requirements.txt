@@ -5,6 +5,7 @@ langchain-community>=0.2.0
 langchain-openai>=0.1.0
 langchain-mistralai
 mistralai
+fastapi
 
 # OpenAI
 openai>=1.30.0
