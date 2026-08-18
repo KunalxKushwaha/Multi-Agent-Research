@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Research Pipeline Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0F1219;
+    --panel: #171B24;
+    --panel-raised: #1D222E;
+    --hairline: #2A3040;
+    --text: #E7E5DE;
+    --text-muted: #8B93A7;
+    --paper: #F6F2E9;
+    --paper-ink: #23201A;
+    --amber: #E8A33D;
+    --teal: #3FA796;
+    --coral: #E85C4A;
+    --amber-glow: rgba(232,163,61,0.18);
+    --teal-glow: rgba(63,167,150,0.18);
+    --coral-glow: rgba(232,92,74,0.18);
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  body{
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(232,163,61,0.06), transparent 40%),
+      radial-gradient(circle at 85% 10%, rgba(63,167,150,0.06), transparent 40%);
+  }
+  .wrap{ max-width:920px; margin:0 auto; padding:56px 24px 96px; }
+
+  /* ---------- Hero ---------- */
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--text-muted); margin:0 0 14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); }
+  h1{
+    font-family:'Fraunces', serif; font-weight:500; font-size:clamp(32px, 5vw, 48px);
+    line-height:1.05; margin:0 0 12px; letter-spacing:-0.01em;
+  }
+  h1 em{ font-style:italic; color:var(--amber); }
+  .sub{ color:var(--text-muted); font-size:15px; max-width:520px; line-height:1.5; margin:0 0 32px; }
+
+  .console-row{ display:flex; gap:10px; margin-bottom:48px; }
+  .console-row input{
+    flex:1; background:var(--panel); border:1px solid var(--hairline); border-radius:8px;
+    padding:15px 16px; color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:14px;
+    outline:none; transition:border-color .15s ease;
+  }
+  .console-row input::placeholder{ color:#5B6376; }
+  .console-row input:focus{ border-color:var(--amber); }
+  .console-row button{
+    background:var(--amber); color:#1a1305; border:none; border-radius:8px; padding:0 26px;
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14px; letter-spacing:.02em;
+    cursor:pointer; transition: transform .1s ease, box-shadow .15s ease;
+  }
+  .console-row button:hover:not(:disabled){ box-shadow:0 0 0 4px var(--amber-glow); }
+  .console-row button:active:not(:disabled){ transform:scale(0.98); }
+  .console-row button:disabled{ background:#4A4536; color:#8A8570; cursor:not-allowed; }
+
+  /* ---------- Pipeline rail (signature element) ---------- */
+  .rail{
+    position:relative; display:flex; justify-content:space-between; align-items:flex-start;
+    margin:0 0 56px; padding:0 6px;
+  }
+  .rail::before{
+    content:""; position:absolute; top:15px; left:24px; right:24px; height:2px;
+    background:var(--hairline); z-index:0;
+  }
+  .rail .progress-line{
+    content:""; position:absolute; top:15px; left:24px; height:2px;
+    background:linear-gradient(90deg, var(--teal), var(--amber)); z-index:1; width:0%;
+    transition:width .5s ease;
+  }
+  .station{ position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; width:25%; }
+  .station .ring{
+    width:32px; height:32px; border-radius:50%; background:var(--bg); border:2px solid var(--hairline);
+    display:flex; align-items:center; justify-content:center; transition:all .25s ease;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-muted);
+  }
+  .station.running .ring{ border-color:var(--amber); box-shadow:0 0 0 6px var(--amber-glow); animation:pulse 1.4s ease-in-out infinite; }
+  .station.done .ring{ border-color:var(--teal); background:var(--teal); color:#08211d; }
+  .station.error .ring{ border-color:var(--coral); background:var(--coral); color:#2a0704; }
+  @keyframes pulse{ 0%,100%{ box-shadow:0 0 0 4px var(--amber-glow);} 50%{ box-shadow:0 0 0 9px var(--amber-glow);} }
+  .station .label{
+    margin-top:10px; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--text-muted); text-align:center;
+  }
+  .station.running .label{ color:var(--amber); }
+  .station.done .label{ color:var(--teal); }
+  .station.error .label{ color:var(--coral); }
+  .station .sublabel{ font-size:10px; color:#565D70; margin-top:2px; text-align:center; min-height:12px; }
+
+  /* ---------- Stage panels ---------- */
+  .panel{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    margin-bottom:14px; overflow:hidden; opacity:0.45; transition:opacity .3s ease, border-color .3s ease;
+  }
+  .panel.active, .panel.finished{ opacity:1; }
+  .panel.errored{ border-color:var(--coral); opacity:1; }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between; padding:16px 20px; cursor:pointer;
+    user-select:none;
+  }
+  .panel-head .htitle{ display:flex; align-items:center; gap:10px; font-weight:600; font-size:14px; }
+  .panel-head .num{ font-family:'IBM Plex Mono', monospace; color:var(--text-muted); font-size:12px; }
+  .panel-head .status-chip{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    padding:3px 9px; border-radius:20px; border:1px solid var(--hairline); color:var(--text-muted);
+  }
+  .panel.running .status-chip{ color:var(--amber); border-color:var(--amber); }
+  .panel.finished .status-chip{ color:var(--teal); border-color:var(--teal); }
+  .panel.errored .status-chip{ color:var(--coral); border-color:var(--coral); }
+  .chevron{ color:var(--text-muted); transition:transform .2s ease; font-size:12px; }
+  .panel.open .chevron{ transform:rotate(180deg); }
+  .panel-body{ max-height:0; overflow:hidden; transition:max-height .35s ease; }
+  .panel.open .panel-body{ max-height:2000px; }
+  .panel-body-inner{ padding:0 20px 20px; }
+
+  .report-paper{
+    background:var(--paper); color:var(--paper-ink); border-radius:8px; padding:22px 24px;
+    font-family:'Fraunces', serif; font-size:15px; line-height:1.65; white-space:pre-wrap;
+  }
+  .mono-block{
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:8px; padding:16px 18px;
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; line-height:1.6; color:var(--text);
+    white-space:pre-wrap; max-height:340px; overflow-y:auto;
+  }
+  .critic-block{
+    border-left:3px solid var(--coral); background:var(--coral-glow); padding:14px 18px; border-radius:0 8px 8px 0;
+    font-size:13.5px; line-height:1.6; white-space:pre-wrap;
+  }
+  .copy-btn{
+    margin-top:12px; background:transparent; border:1px solid var(--hairline); color:var(--text-muted);
+    font-family:'IBM Plex Mono', monospace; font-size:11px; padding:7px 12px; border-radius:6px; cursor:pointer;
+  }
+  .copy-btn:hover{ border-color:var(--text-muted); color:var(--text); }
+
+  .empty-hint{ color:#565D70; font-size:13px; padding:2px 0 4px; }
+  .error-banner{
+    background:var(--coral-glow); border:1px solid var(--coral); color:#FFD9D2; border-radius:8px;
+    padding:14px 18px; margin-bottom:16px; font-size:13.5px; font-family:'IBM Plex Mono', monospace;
+    display:none;
+  }
+  .error-banner.show{ display:block; }
+
+  footer{ margin-top:48px; text-align:center; color:#4B5164; font-family:'IBM Plex Mono', monospace; font-size:11px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="eyebrow"><span class="dot"></span> AGENT PIPELINE &mdash; SEARCH / READ / WRITE / CRITIQUE</div>
+    <h1>Point it at a topic.<br/>Watch the <em>agents</em> work.</h1>
+    <p class="sub">Four agents run in sequence: one finds sources, one reads the best of them, one drafts the report, and one reviews it before you do.</p>
+
+    <div class="console-row">
+      <input id="topicInput" type="text" placeholder="e.g. the current state of solid-state batteries" />
+      <button id="runBtn">Run pipeline</button>
+    </div>
+
+    <div class="error-banner" id="errorBanner"></div>
+
+    <!-- Signature element: pipeline rail -->
+    <div class="rail" id="rail">
+      <div class="progress-line" id="progressLine"></div>
+      <div class="station" data-stage="search">
+        <div class="ring">1</div>
+        <div class="label">Search</div>
+        <div class="sublabel">finding sources</div>
+      </div>
+      <div class="station" data-stage="reader">
+        <div class="ring">2</div>
+        <div class="label">Reader</div>
+        <div class="sublabel">scraping content</div>
+      </div>
+      <div class="station" data-stage="writer">
+        <div class="ring">3</div>
+        <div class="label">Writer</div>
+        <div class="sublabel">drafting report</div>
+      </div>
+      <div class="station" data-stage="critic">
+        <div class="ring">4</div>
+        <div class="label">Critic</div>
+        <div class="sublabel">reviewing</div>
+      </div>
+    </div>
+
+    <!-- Stage panels -->
+    <div class="panel" id="panel-search" data-stage="search">
+      <div class="panel-head">
+        <div class="htitle"><span class="num">01</span> Search results</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="status-chip">idle</span>
+          <span class="chevron">&#9662;</span>
+        </div>
+      </div>
+      <div class="panel-body"><div class="panel-body-inner">
+        <div class="empty-hint">Waiting to run.</div>
+      </div></div>
+    </div>
+
+    <div class="panel" id="panel-reader" data-stage="reader">
+      <div class="panel-head">
+        <div class="htitle"><span class="num">02</span> Scraped content</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="status-chip">idle</span>
+          <span class="chevron">&#9662;</span>
+        </div>
+      </div>
+      <div class="panel-body"><div class="panel-body-inner">
+        <div class="empty-hint">Waiting to run.</div>
+      </div></div>
+    </div>
+
+    <div class="panel" id="panel-writer" data-stage="writer">
+      <div class="panel-head">
+        <div class="htitle"><span class="num">03</span> Draft report</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="status-chip">idle</span>
+          <span class="chevron">&#9662;</span>
+        </div>
+      </div>
+      <div class="panel-body"><div class="panel-body-inner">
+        <div class="empty-hint">Waiting to run.</div>
+      </div></div>
+    </div>
+
+    <div class="panel" id="panel-critic" data-stage="critic">
+      <div class="panel-head">
+        <div class="htitle"><span class="num">04</span> Critic feedback</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="status-chip">idle</span>
+          <span class="chevron">&#9662;</span>
+        </div>
+      </div>
+      <div class="panel-body"><div class="panel-body-inner">
+        <div class="empty-hint">Waiting to run.</div>
+      </div></div>
+    </div>
+
+    <footer>served by server.py &middot; four agents, one topic</footer>
+  </div>
+
+<script>
+const STAGES = ["search","reader","writer","critic"];
+const runBtn = document.getElementById("runBtn");
+const topicInput = document.getElementById("topicInput");
+const errorBanner = document.getElementById("errorBanner");
+const progressLine = document.getElementById("progressLine");
+
+function stationEl(stage){ return document.querySelector(`.station[data-stage="${stage}"]`); }
+function panelEl(stage){ return document.getElementById(`panel-${stage}`); }
+
+function setStationState(stage, state){
+  const el = stationEl(stage);
+  el.classList.remove("running","done","error");
+  if(state) el.classList.add(state);
+  const ring = el.querySelector(".ring");
+  ring.textContent = state === "done" ? "\u2713" : (state === "error" ? "!" : (STAGES.indexOf(stage)+1));
+}
+
+function setPanelState(stage, state, text){
+  const panel = panelEl(stage);
+  panel.classList.remove("running","finished","errored");
+  if(state) panel.classList.add(state);
+  const chip = panel.querySelector(".status-chip");
+  chip.textContent = state === "running" ? "running" : state === "finished" ? "done" : state === "errored" ? "error" : "idle";
+}
+
+function renderOutput(stage, text){
+  const panel = panelEl(stage);
+  const inner = panel.querySelector(".panel-body-inner");
+  inner.innerHTML = "";
+
+  if(stage === "writer"){
+    const div = document.createElement("div");
+    div.className = "report-paper";
+    div.textContent = text;
+    inner.appendChild(div);
+    const btn = document.createElement("button");
+    btn.className = "copy-btn";
+    btn.textContent = "Copy report";
+    btn.onclick = () => { navigator.clipboard.writeText(text); btn.textContent = "Copied"; setTimeout(()=>btn.textContent="Copy report", 1200); };
+    inner.appendChild(btn);
+  } else if(stage === "critic"){
+    const div = document.createElement("div");
+    div.className = "critic-block";
+    div.textContent = text;
+    inner.appendChild(div);
+  } else {
+    const div = document.createElement("div");
+    div.className = "mono-block";
+    div.textContent = text;
+    inner.appendChild(div);
+  }
+  panel.classList.add("open");
+}
+
+function updateProgressLine(doneCount){
+  const pct = (doneCount / STAGES.length) * 100;
+  progressLine.style.width = pct + "%";
+}
+
+// panel accordion toggle
+document.querySelectorAll(".panel-head").forEach(head => {
+  head.addEventListener("click", () => {
+    head.closest(".panel").classList.toggle("open");
+  });
+});
+
+function resetUI(){
+  errorBanner.classList.remove("show");
+  errorBanner.textContent = "";
+  progressLine.style.width = "0%";
+  STAGES.forEach(stage => {
+    setStationState(stage, null);
+    setPanelState(stage, null);
+    const panel = panelEl(stage);
+    panel.classList.remove("open");
+    panel.querySelector(".panel-body-inner").innerHTML = `<div class="empty-hint">Waiting to run.</div>`;
+  });
+}
+
+async function runPipeline(){
+  const topic = topicInput.value.trim();
+  if(!topic){ topicInput.focus(); return; }
+
+  resetUI();
+  runBtn.disabled = true;
+  runBtn.textContent = "Running\u2026";
+
+  let doneCount = 0;
+
+  try{
+    const res = await fetch("/api/research/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic })
+    });
+
+    if(!res.ok || !res.body){
+      throw new Error(`Server returned ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while(true){
+      const { value, done } = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, { stream:true });
+
+      let parts = buffer.split("\n\n");
+      buffer = parts.pop(); // keep incomplete chunk
+
+      for(const part of parts){
+        const line = part.trim();
+        if(!line.startsWith("data:")) continue;
+        const jsonStr = line.slice(5).trim();
+        if(!jsonStr) continue;
+        const event = JSON.parse(jsonStr);
+        handleEvent(event);
+      }
+    }
+  } catch(err){
+    showError(err.message || String(err));
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = "Run pipeline";
+  }
+
+  function handleEvent(event){
+    const { stage, status } = event;
+
+    if(stage === "pipeline"){
+      if(status === "error") showError(event.message);
+      return;
+    }
+
+    if(status === "running"){
+      setStationState(stage, "running");
+      setPanelState(stage, "running");
+      const inner = panelEl(stage).querySelector(".panel-body-inner");
+      inner.innerHTML = `<div class="empty-hint">${event.message || "Working\u2026"}</div>`;
+    } else if(status === "done"){
+      setStationState(stage, "done");
+      setPanelState(stage, "finished");
+      renderOutput(stage, event.output || "");
+      doneCount += 1;
+      updateProgressLine(doneCount);
+    }
+  }
+
+  function showError(msg){
+    errorBanner.textContent = "Pipeline error: " + msg;
+    errorBanner.classList.add("show");
+  }
+}
+
+runBtn.addEventListener("click", runPipeline);
+topicInput.addEventListener("keydown", e => { if(e.key === "Enter") runPipeline(); });
+</script>
+</body>
+</html>
