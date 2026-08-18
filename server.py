@@ -57,16 +57,53 @@ class ResearchRequest(BaseModel):
 
 def _content_of(result) -> str:
     """
-    Agent/chain outputs vary: langgraph agents return {"messages":[...]},
-    LCEL chains might return a plain string or an AIMessage-like object
-    with a `.content` attribute. This normalizes any of those to a string
-    so the UI always gets plain text.
+    Agent/chain outputs vary a lot in shape:
+      - langgraph agents return {"messages": [...]}
+      - LCEL chains might return a plain string, or an AIMessage-like
+        object with a `.content` attribute
+      - `.content` itself can be a plain string, OR a list of content
+        blocks (e.g. [{"type": "text", "text": "..."}, ...]), which is
+        how some providers/SDKs represent multi-block messages
+
+    Whatever shape comes in, this always returns a flat string, so the
+    frontend never receives anything but plain text in `output`.
     """
     if isinstance(result, dict) and "messages" in result:
-        return result["messages"][-1].content
+        return _flatten_content(result["messages"][-1].content)
     if hasattr(result, "content"):
-        return result.content
-    return str(result)
+        return _flatten_content(result.content)
+    return _flatten_content(result)
+
+
+def _flatten_content(content) -> str:
+    """Reduces a `.content`-shaped value (str, list of blocks, dict, or
+    anything else) down to a single display string."""
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                # Common shapes: {"type": "text", "text": "..."} or {"text": "..."}
+                text = block.get("text") or block.get("content") or ""
+                if text:
+                    parts.append(str(text))
+                elif block:
+                    parts.append(json.dumps(block, ensure_ascii=False))
+            else:
+                parts.append(str(block))
+        return "\n".join(p for p in parts if p)
+
+    if isinstance(content, dict):
+        text = content.get("text") or content.get("content")
+        if text:
+            return _flatten_content(text)
+        return json.dumps(content, ensure_ascii=False)
+
+    return str(content)
 
 
 def _run_pipeline(topic: str, q: "queue.Queue"):
