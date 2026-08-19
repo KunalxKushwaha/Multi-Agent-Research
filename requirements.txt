@@ -6,6 +6,7 @@ langchain-openai>=0.1.0
 langchain-mistralai
 mistralai
 fastapi
+uvicorn
 
 # OpenAI
 openai>=1.30.0
